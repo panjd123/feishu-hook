@@ -19,6 +19,62 @@ The agent must also be able to repair an existing install when the environment h
 
 Run all commands from the repository root.
 
+## Required First Step
+
+Before cloning this repository, before pulling updates, and before running any installer command, the agent must determine whether the task is:
+
+- a fresh install
+- a repair / reinstall
+
+The webhook acquisition rule depends on that distinction.
+
+## Webhook Acquisition Rule
+
+### Fresh install
+
+For a fresh install, the agent must first obtain the Feishu webhook from the user.
+
+Accepted input forms:
+
+- full Feishu webhook URL
+- only the final hook token
+
+Example token form:
+
+```text
+xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+```
+
+For fresh installs, the agent must not:
+
+- assume the webhook already exists in the repo
+- invent or guess a webhook
+- proceed with installation before the user provides it
+
+### Repair / reinstall
+
+For a repair or reinstall, the agent may first inspect local existing configuration and reuse it if a valid webhook is already present.
+
+Typical places to inspect:
+
+- target `.codex/hooks/feishu_stop_notify_config.json`
+- project-local `./.codex/hooks/feishu_stop_notify_config.json`
+- user-level `~/.codex/hooks/feishu_stop_notify_config.json`
+
+If a valid existing webhook is found in the active target environment, the agent may proceed without asking the user again.
+
+If no valid webhook is found, the agent must ask the user for:
+
+- the full Feishu webhook URL
+- or the final hook token
+
+## Practical Order Of Operations
+
+1. Decide whether this is fresh install vs repair
+2. If repair, inspect local config first
+3. If no reusable webhook is found, ask the user
+4. Only then continue with clone / pull / install / repair steps
+
 ## High-Level Rule
 
 Choose the installation mode based on who owns `hooks.json`.
@@ -216,15 +272,6 @@ python3 scripts/install.py \
 ```
 
 The installer automatically expands the token into the full Feishu webhook URL.
-
-## Required User Input
-
-The agent must not invent or assume a webhook URL.
-
-If the user did not provide one, the agent must ask for:
-
-- either the full Feishu webhook URL
-- or just the final hook token
 
 ## What `codex` Mode Does
 
