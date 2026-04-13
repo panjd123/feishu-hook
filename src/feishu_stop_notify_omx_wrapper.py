@@ -17,6 +17,49 @@ CONFIG_PATH = SCRIPT_DIR / "feishu_stop_notify_config.json"
 LOG_PATH = SCRIPT_DIR / "logs" / "feishu_stop_notify.log"
 
 
+def read_string_field(event: dict, *names: str) -> str:
+    for name in names:
+        value = str(event.get(name) or "").strip()
+        if value:
+            return value
+    return ""
+
+
+def is_subagent_stop_event(event: dict) -> bool:
+    cwd = read_string_field(event, "cwd")
+    session_id = read_string_field(event, "session_id", "sessionId")
+    thread_id = read_string_field(event, "thread_id", "threadId")
+    if not cwd or not session_id or not thread_id:
+        return False
+
+    tracking_path = pathlib.Path(cwd) / ".omx" / "state" / "subagent-tracking.json"
+    if not tracking_path.exists():
+        return False
+
+    try:
+        tracking = load_json(tracking_path)
+    except Exception as exc:
+        log(LOG_PATH, f"omx subagent_tracking_load_error={exc!r}")
+        return False
+
+    sessions = tracking.get("sessions")
+    if not isinstance(sessions, dict):
+        return False
+
+    session = sessions.get(session_id)
+    if not isinstance(session, dict):
+        return False
+
+    leader_thread_id = str(session.get("leader_thread_id") or "").strip()
+    threads = session.get("threads")
+    thread = threads.get(thread_id) if isinstance(threads, dict) else None
+    thread_kind = str(thread.get("kind") or "").strip() if isinstance(thread, dict) else ""
+
+    if leader_thread_id and thread_id != leader_thread_id:
+        return True
+    return thread_kind == "subagent"
+
+
 def main() -> int:
     raw_input = sys.stdin.buffer.read()
     try:
@@ -72,6 +115,10 @@ def main() -> int:
         sys.stdout.buffer.write(completed.stdout)
         sys.stdout.flush()
         log(LOG_PATH, "omx stop_continued_by_omx skip_notify=true")
+        return 0
+
+    if is_subagent_stop_event(event):
+        log(LOG_PATH, "omx stop_subagent_completed skip_notify=true")
         return 0
 
     send_notification_from_event(

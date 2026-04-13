@@ -39,6 +39,7 @@ That file is the source of truth for installation, repair, environment detection
 - wraps the OMX-managed `Stop` command instead of replacing OMX behavior
 - delegates to OMX first
 - sends Feishu only if OMX does not return a continuation decision
+- ignores native subagent `Stop` events and only notifies for the leader/main agent stop
 
 ## Repository Layout
 

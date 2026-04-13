@@ -301,7 +301,8 @@ In `omx` mode the wrapper:
 1. delegates the same stdin payload to the original OMX `Stop` command
 2. waits for OMX to decide whether the turn should continue
 3. if OMX returns hook output, it forwards that output and does **not** send Feishu
-4. if OMX returns no hook output, it sends Feishu
+4. if OMX returns no hook output for a native subagent thread, it still skips Feishu
+5. if OMX returns no hook output for the leader/main agent stop, it sends Feishu
 
 This is the key difference from plain Codex mode.
 
@@ -335,7 +336,7 @@ After any repair or reinstall, verify all of the following:
 1. the chosen `codex-home` matches the active environment
 2. `hooks.json` points to the correct command for that environment
 3. in OMX mode, `feishu_stop_notify_config.json` contains `omx_original_stop_command`
-4. triggering a final stop sends Feishu
+4. in OMX mode, only the leader/main-agent final stop sends Feishu
 5. in OMX mode, a continuation-style `Stop` still returns OMX continuation JSON and does not send Feishu
 
 If any of these checks fail, treat the environment as still broken and continue repairing.
