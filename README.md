@@ -103,3 +103,25 @@ python3 scripts/uninstall.py
 ```
 
 In OMX mode this restores the original OMX `Stop` command. In plain Codex mode this removes the standalone Feishu `Stop` hook entry.
+
+## Installation
+
+### For Humans
+
+Copy and paste this prompt to your LLM agent (Claude Code, AmpCode, Cursor, etc.):
+
+```markdown
+Install and configure `feishu-hook` by following these instructions exactly:
+
+1. If the repository is not already available locally, clone:
+   `https://github.com/panjd123/feishu-hook.git`
+2. Read the installation guide:
+   `docs/installation.md`
+3. Follow that file as the source of truth.
+4. Treat this as either a fresh install or a repair depending on the environment.
+5. If this is a fresh install, ask me for the Feishu webhook URL or hook token before installing.
+6. If this is a repair, first inspect local existing `.codex` hook config and reuse an existing webhook if valid.
+7. Choose the correct install mode (`codex` or `omx`) based on the environment.
+8. Run the installer.
+9. Verify the installation actually works instead of stopping after file edits.
+```

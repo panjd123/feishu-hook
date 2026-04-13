@@ -1,10 +1,34 @@
 # feishu-hook Installation
 
-Use this document when the task is:
+Use this file as a complete standalone instruction set for a coding agent.
 
-> Install and configure `feishu-hook` by following the instructions here.
+If the user says:
 
-Your job is to inspect the environment, decide whether this is a fresh install or a repair, choose the correct mode, run the installer, and verify that the installation actually works.
+> Install and configure `feishu-hook` by following the instructions here
+
+then this file should be sufficient even if the agent does not yet know:
+
+- the repository URL
+- whether the repo is already cloned locally
+- whether the task is a fresh install or a repair
+- whether the target environment is plain Codex or `oh-my-codex` / OMX
+
+## Repository
+
+Canonical repository URL:
+
+```text
+https://github.com/panjd123/feishu-hook.git
+```
+
+If the repo is not already available locally, clone it first:
+
+```bash
+git clone https://github.com/panjd123/feishu-hook.git
+cd feishu-hook
+```
+
+If the repo is already present locally, use that checkout instead. If the task is a repair or upgrade, pull the latest changes before installing, but only after handling webhook acquisition rules below.
 
 ## Goal
 
@@ -15,18 +39,14 @@ Install the Feishu notification integration in the correct mode for the current 
 
 The agent must also be able to repair an existing install when the environment has drifted.
 
-## Repository Root
+## Required First Decision
 
-Run all commands from the repository root.
-
-## Required First Step
-
-Before cloning this repository, before pulling updates, and before running any installer command, the agent must determine whether the task is:
+Before running any installer command, determine whether the task is:
 
 - a fresh install
-- a repair / reinstall
+- a repair / reinstall / upgrade
 
-The webhook acquisition rule depends on that distinction.
+This matters because webhook acquisition works differently for fresh installs and repairs.
 
 ## Webhook Acquisition Rule
 
@@ -45,15 +65,15 @@ Example token form:
 xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-For fresh installs, the agent must not:
+For fresh installs, do not:
 
-- assume the webhook already exists in the repo
 - invent or guess a webhook
+- assume the repo contains one
 - proceed with installation before the user provides it
 
-### Repair / reinstall
+### Repair / reinstall / upgrade
 
-For a repair or reinstall, the agent may first inspect local existing configuration and reuse it if a valid webhook is already present.
+For a repair or reinstall, inspect local existing configuration first and reuse it if a valid webhook is already present.
 
 Typical places to inspect:
 
@@ -61,52 +81,26 @@ Typical places to inspect:
 - project-local `./.codex/hooks/feishu_stop_notify_config.json`
 - user-level `~/.codex/hooks/feishu_stop_notify_config.json`
 
-If a valid existing webhook is found in the active target environment, the agent may proceed without asking the user again.
+If a valid webhook is already present in the active target environment, you may reuse it.
 
-If no valid webhook is found, the agent must ask the user for:
+If no valid webhook is found, ask the user for:
 
 - the full Feishu webhook URL
 - or the final hook token
 
 ## Practical Order Of Operations
 
-1. Decide whether this is fresh install vs repair
+1. Decide whether this is a fresh install or a repair
 2. If repair, inspect local config first
 3. If no reusable webhook is found, ask the user
-4. Only then continue with clone / pull / install / repair steps
+4. Ensure the repo is available locally
+5. If repairing/upgrading from an existing checkout, pull latest changes
+6. Inspect the target environment
+7. Choose the correct install mode
+8. Run the installer
+9. Verify that the installation actually works
 
-## High-Level Rule
-
-Choose the installation mode based on who owns `hooks.json`.
-
-- If `oh-my-codex` / OMX already manages the target `.codex/hooks.json`, use `omx` mode.
-- Otherwise use `codex` mode.
-
-If uncertain, run the installer with `--mode auto` and verify the detected mode from stdout.
-
-Do not assume the current environment is healthy just because Feishu hook files or OMX files already exist.
-The current task may be a repair, not a fresh install.
-
-## Repair-First Mindset
-
-Before changing anything, inspect the target environment and classify the task as one of:
-
-- fresh install
-- reinstall / refresh
-- repair after another tool rewrote `hooks.json`
-- repair after scope changed
-
-Typical drift cases:
-
-- Feishu hook was installed first, then `omx setup` was run later
-- OMX was installed first, then Feishu hook was installed in plain `codex` mode by mistake
-- OMX changed from user scope to project scope, or the reverse
-- `hooks.json` still exists, but points to the wrong command for the current environment
-- Feishu runtime files exist, but `hooks.json` no longer references them
-
-The agent should treat these as repair scenarios and not as evidence that installation can be skipped.
-
-## Required Inspection Before Install Or Repair
+## Environment Inspection
 
 Inspect all of the following before deciding what to do:
 
@@ -115,12 +109,12 @@ Inspect all of the following before deciding what to do:
 3. target `.codex/hooks/feishu_stop_notify_config.json` if present
 4. target `.codex/hooks/` runtime files if present
 
-The agent should explicitly determine:
+You must explicitly determine:
 
 - which `codex-home` is currently authoritative
 - whether OMX owns the target `Stop` hook
-- whether Feishu is already installed
-- whether the current Feishu installation mode matches the current environment
+- whether `feishu-hook` is already installed
+- whether the current installation mode matches the current environment
 
 ## Installation vs Repair Decision
 
@@ -140,22 +134,24 @@ The agent should explicitly determine:
 
 In repair mode, the correct default action is usually to run `scripts/install.py` again with the correct mode, not to manually patch files.
 
-## Mode Selection Procedure
+## Mode Selection
 
-### Choose `omx` mode when all of these are true
+Choose `omx` mode when all of these are true:
 
-- The project contains `.omx/setup-scope.json`, or you know `omx setup` was run.
-- The target `.codex/hooks.json` already has a `Stop` command containing `codex-native-hook.js`.
+- the project contains `.omx/setup-scope.json`, or you know `omx setup` was run
+- the target `.codex/hooks.json` has a `Stop` command containing `codex-native-hook.js`
 
-### Choose `codex` mode when any of these are true
+Choose `codex` mode when any of these are true:
 
-- There is no `.omx/setup-scope.json`.
-- The target `.codex/hooks.json` does not look OMX-managed.
-- The user wants plain Codex only.
+- there is no `.omx/setup-scope.json`
+- the target `.codex/hooks.json` does not look OMX-managed
+- the user wants plain Codex only
+
+If uncertain, use `--mode auto`.
 
 ## Common Repair Scenarios
 
-### Scenario A: Feishu was installed first, then `omx setup` was run
+### Scenario A: Feishu was installed first, then `omx setup` was run later
 
 Expected symptom:
 
@@ -165,13 +161,13 @@ Expected symptom:
 Correct action:
 
 ```bash
-python3 scripts/install.py --mode omx
+python3 scripts/install.py --mode omx --webhook-url '<FULL_URL_OR_TOKEN>'
 ```
 
 If scope is ambiguous, prefer:
 
 ```bash
-python3 scripts/install.py --mode auto
+python3 scripts/install.py --mode auto --webhook-url '<FULL_URL_OR_TOKEN>'
 ```
 
 Then verify that the target `Stop` command now points to `feishu_stop_notify_omx_wrapper.py`.
@@ -186,7 +182,7 @@ Expected symptom:
 Correct action:
 
 ```bash
-python3 scripts/install.py --mode omx
+python3 scripts/install.py --mode omx --webhook-url '<FULL_URL_OR_TOKEN>'
 ```
 
 Then verify that:
@@ -207,9 +203,9 @@ Correct action:
 2. reinstall into that target
 3. optionally uninstall from the old target if requested
 
-The agent must not assume `~/.codex` is still correct after OMX project-scope setup.
+Do not assume `~/.codex` is still correct after OMX project-scope setup.
 
-## Target Codex Home Resolution
+## Codex Home Resolution
 
 If `--codex-home` is not provided, the installer uses this logic:
 
@@ -219,16 +215,15 @@ If `--codex-home` is not provided, the installer uses this logic:
 
 Override this with `--codex-home` when necessary.
 
-## Bundled Defaults
+## Public-Safe Defaults
 
 - Default `title_prefix` is `[Codex]`
+- There is no bundled webhook in this public-safe repo
+- The user must provide a webhook explicitly, unless a valid existing local config is being reused during repair
 
-There is no bundled webhook in the public-safe version of this repo.
-The installer requires the user to provide a webhook explicitly.
+## Canonical Install Commands
 
-## Canonical Commands
-
-### Auto
+### Auto mode
 
 ```bash
 python3 scripts/install.py --webhook-url '<FULL_URL_OR_TOKEN>'
@@ -236,15 +231,15 @@ python3 scripts/install.py --webhook-url '<FULL_URL_OR_TOKEN>'
 
 Use this by default when repairing an unknown environment.
 
-### Plain Codex
+### Plain Codex mode
 
 ```bash
 python3 scripts/install.py --mode codex --webhook-url '<FULL_URL_OR_TOKEN>'
 ```
 
-### oh-my-codex / OMX
+### oh-my-codex / OMX mode
 
-First ensure OMX is already installed and set up for the intended scope:
+If OMX is not installed yet, install/setup OMX first:
 
 ```bash
 omx setup
@@ -256,7 +251,7 @@ Then install:
 python3 scripts/install.py --mode omx --webhook-url '<FULL_URL_OR_TOKEN>'
 ```
 
-### Override defaults
+### Full URL example
 
 ```bash
 python3 scripts/install.py \
@@ -264,16 +259,18 @@ python3 scripts/install.py \
   --title-prefix '[Codex]'
 ```
 
-The same `--webhook-url` flag also accepts only the final hook token:
+### Token-only example
 
 ```bash
 python3 scripts/install.py \
   --webhook-url 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
 ```
 
-The installer automatically expands the token into the full Feishu webhook URL.
+The installer automatically expands a token into the full Feishu webhook URL.
 
-## What `codex` Mode Does
+## What Each Mode Does
+
+### `codex` mode
 
 1. Copies runtime files into `<codex-home>/hooks/`
 2. Writes `<codex-home>/hooks/feishu_stop_notify_config.json`
@@ -284,7 +281,7 @@ The installer automatically expands the token into the full Feishu webhook URL.
 python3 /ABSOLUTE/PATH/TO/<codex-home>/hooks/feishu_stop_notify.py
 ```
 
-## What `omx` Mode Does
+### `omx` mode
 
 1. Copies runtime files into `<codex-home>/hooks/`
 2. Writes `<codex-home>/hooks/feishu_stop_notify_config.json`
@@ -310,49 +307,45 @@ This is the key difference from plain Codex mode.
 
 ## Validation Steps
 
-1. Confirm installer stdout shows:
-   - target `Codex home`
-   - detected `Install mode`
-2. Inspect the config:
+After installation, verify all of the following:
 
-```bash
-cat <codex-home>/hooks/feishu_stop_notify_config.json
-```
+1. installer stdout shows the expected `Codex home`
+2. installer stdout shows the correct `Install mode`
+3. target `hooks.json` points to the correct command
+4. target `hooks/feishu_stop_notify_config.json` exists
+5. in OMX mode, config contains `omx_original_stop_command`
 
-3. Inspect the hook registration:
+Command checks:
 
 ```bash
 cat <codex-home>/hooks.json
-```
-
-4. Trigger a completed turn and inspect:
-
-```bash
+cat <codex-home>/hooks/feishu_stop_notify_config.json
 tail -n 50 <codex-home>/hooks/logs/feishu_stop_notify.log
 ```
 
-5. Confirm a Feishu bot message appears.
+Expected `Stop` command:
+
+- plain Codex: `feishu_stop_notify.py`
+- OMX: `feishu_stop_notify_omx_wrapper.py`
 
 ## Repair Validation Checklist
 
-After any repair or reinstall, the agent should verify all of the following:
+After any repair or reinstall, verify all of the following:
 
-1. The chosen `codex-home` matches the active environment.
-2. `hooks.json` points to the correct command for that environment:
-   - plain Codex: `feishu_stop_notify.py`
-   - OMX: `feishu_stop_notify_omx_wrapper.py`
-3. In OMX mode, `feishu_stop_notify_config.json` contains `omx_original_stop_command`.
-4. Triggering a final stop sends Feishu.
-5. In OMX mode, a continuation-style `Stop` still returns OMX continuation JSON and does not send Feishu.
+1. the chosen `codex-home` matches the active environment
+2. `hooks.json` points to the correct command for that environment
+3. in OMX mode, `feishu_stop_notify_config.json` contains `omx_original_stop_command`
+4. triggering a final stop sends Feishu
+5. in OMX mode, a continuation-style `Stop` still returns OMX continuation JSON and does not send Feishu
 
 If any of these checks fail, treat the environment as still broken and continue repairing.
 
 ## Idempotency
 
-- Re-running `scripts/install.py` is supported.
-- In `omx` mode, re-running after `omx setup` is expected because `omx setup` rewrites `.codex/hooks.json`.
+- Re-running `scripts/install.py` is supported
+- In `omx` mode, re-running after `omx setup` is expected because `omx setup` rewrites `.codex/hooks.json`
 
-Because of this, if the user says installation already happened but behavior is wrong, the agent should usually inspect and then re-run the installer rather than assuming the install is intact.
+If the user says installation already happened but behavior is wrong, inspect and then re-run the installer rather than assuming the existing install is intact.
 
 ## Rollback
 
